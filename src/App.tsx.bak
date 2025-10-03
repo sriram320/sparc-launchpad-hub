@@ -1,0 +1,83 @@
+import { Toaster } from "@/components/ui/toaster";
+import { Toaster as            </TooltipProvider>
+          </QRCodeProvider>
+        </EventProvider>
+      </BlogProvider>
+    </AuthProvider>
+  </QueryClientProvider>);er } from "@/components/ui/sonner";
+import { TooltipProvider } from "@/components/ui/tooltip";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { AuthProvider } from "@/contexts/AuthContext";
+import { BlogProvider } from "@/contexts/BlogContext";
+import { EventProvider } from "@/contexts/EventContext";
+import { QRCodeProvider } from "@/contexts/QRCodeContext";
+import Index from "./pages/Index";
+import About from "./pages/About";
+import Events from "./pages/Events";
+import EventDetail from "./pages/EventDetail";
+import EventBooking from "./pages/EventBooking";
+import Gallery from "./pages/Gallery";
+import Blog from "./pages/Blog";
+import Contact from "./pages/Contact";
+import Login from "./pages/Login";
+import Onboarding from "./pages/Onboarding";
+import CompleteSetup from "./pages/CompleteSetup";
+import MemberDashboard from "./pages/MemberDashboard";
+import HostDashboard from "./pages/HostDashboard";
+import NotFound from "./pages/NotFound";
+import AchievementDetail from "./pages/AchievementDetail";
+import CreatePost from "./pages/CreatePost";
+import Profile from "./pages/Profile";
+import CreateEvent from "./pages/CreateEvent";
+import ManageEvents from "./pages/ManageEvents";
+import ViewParticipants from "./pages/ViewParticipants";
+import MarkAttendance from "./pages/MarkAttendance";
+import UploadGallery from "./pages/UploadGallery";
+
+const queryClient = new QueryClient();
+
+const App = () => (
+  <QueryClientProvider client={queryClient}>
+    <AuthProvider>
+      <BlogProvider>
+        <EventProvider>
+          <QRCodeProvider>
+            <TooltipProvider>
+              <Toaster />
+              <Sonner />
+              <BrowserRouter>
+              <Routes>
+              <Route path="/" element={<Index />} />
+              <Route path="/about" element={<About />} />
+              <Route path="/events" element={<Events />} />
+              <Route path="/events/:id" element={<EventDetail />} />
+              <Route path="/events/:id/booking" element={<EventBooking />} />
+              <Route path="/achievements/:achievementId" element={<AchievementDetail />} />
+              <Route path="/gallery" element={<Gallery />} />
+              <Route path="/blog" element={<Blog />} />
+              <Route path="/blog/new" element={<CreatePost />} />
+              <Route path="/create-event" element={<CreateEvent />} />
+              <Route path="/manage-events" element={<ManageEvents />} />
+              <Route path="/view-participants" element={<ViewParticipants />} />
+              <Route path="/mark-attendance" element={<MarkAttendance />} />
+              <Route path="/upload-gallery" element={<UploadGallery />} />
+              <Route path="/contact" element={<Contact />} />
+              <Route path="/login" element={<Login />} />
+              <Route path="/profile" element={<Profile />} />
+              <Route path="/complete-setup" element={<CompleteSetup />} />
+              <Route path="/onboarding" element={<Onboarding />} />
+              <Route path="/member-dashboard/*" element={<MemberDashboard />} />
+              <Route path="/host-dashboard/*" element={<HostDashboard />} />
+              {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+          </BrowserRouter>
+          </TooltipProvider>
+        </EventProvider>
+      </BlogProvider>
+    </AuthProvider>
+  </QueryClientProvider>
+);
+
+export default App;

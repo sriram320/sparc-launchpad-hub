@@ -1,0 +1,234 @@
+@import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;600;700;800;900&family=Inter:wght@300;400;500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* SPARC Club Design System - Space & Innovation Theme */
+@layer base {
+  :root {
+    /* Core Space Theme Colors */
+    --background: 213 27% 8%;        /* Deep space navy */
+    --foreground: 213 31% 91%;       /* Bright white-blue */
+    
+    /* Card & Surface Colors */
+    --card: 213 27% 10%;             /* Slightly lighter than background */
+    --card-foreground: 213 31% 91%;
+    
+    --popover: 213 27% 10%;
+    --popover-foreground: 213 31% 91%;
+
+    /* Primary - Rocket Orange Theme */
+    --primary: 21 90% 48%;           /* Vibrant rocket orange */
+    --primary-foreground: 213 31% 91%;
+
+    /* Secondary - Electric Blue */
+    --secondary: 235 84% 64%;        /* Electric blue */
+    --secondary-foreground: 213 31% 91%;
+
+    /* Muted - Subtle grays */
+    --muted: 213 15% 18%;            /* Muted space gray */
+    --muted-foreground: 213 15% 70%;
+
+    /* Accent - AI Purple */
+    --accent: 272 87% 68%;           /* AI purple accent */
+    --accent-foreground: 213 31% 91%;
+
+    /* Destructive - Red warnings */
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 213 31% 91%;
+
+    /* Border & Input */
+    --border: 213 27% 20%;           /* Subtle borders */
+    --input: 213 27% 15%;            /* Input backgrounds */
+    --ring: 21 90% 48%;              /* Focus ring - rocket orange */
+
+    --radius: 0.75rem;
+
+    /* Space Gradients */
+    --space-gradient: linear-gradient(135deg, hsl(213 27% 8%) 0%, hsl(258 31% 12%) 50%, hsl(213 27% 8%) 100%);
+    --rocket-gradient: linear-gradient(135deg, hsl(21 90% 48%) 0%, hsl(16 84% 56%) 50%, hsl(39 96% 58%) 100%);
+    --ai-gradient: linear-gradient(135deg, hsl(272 87% 68%) 0%, hsl(247 82% 71%) 50%, hsl(235 84% 64%) 100%);
+    --earth-gradient: linear-gradient(135deg, hsl(197 100% 45%) 0%, hsl(162 84% 39%) 100%);
+    --ai-gradient: linear-gradient(135deg, hsl(235 84% 64%) 0%, hsl(272 87% 68%) 50%, hsl(235 84% 64%) 100%);
+    --cosmic-glow: 0 0 40px hsl(21 90% 48% / 0.3);
+  }
+
+  .dark {
+    /* Dark mode uses the same space theme */
+    --background: 213 27% 8%;
+    --foreground: 213 31% 91%;
+    --card: 213 27% 10%;
+    --card-foreground: 213 31% 91%;
+    --popover: 213 27% 10%;
+    --popover-foreground: 213 31% 91%;
+    --primary: 21 90% 48%;
+    --primary-foreground: 213 31% 91%;
+    --secondary: 235 84% 64%;
+    --secondary-foreground: 213 31% 91%;
+    --muted: 213 15% 18%;
+    --muted-foreground: 213 15% 70%;
+    --accent: 272 87% 68%;
+    --accent-foreground: 213 31% 91%;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 213 31% 91%;
+    --border: 213 27% 20%;
+    --input: 213 27% 15%;
+    --ring: 21 90% 48%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+    font-family: 'Inter', sans-serif;
+    background: var(--space-gradient);
+    min-height: 100vh;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    font-family: 'Orbitron', sans-serif;
+    font-weight: 600;
+  }
+}
+
+@layer components {
+  /* Starfield Background Animation */
+  .starfield {
+    position: relative;
+    overflow: hidden;
+  }
+
+  .starfield::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-image: 
+      radial-gradient(2px 2px at 20px 30px, #eee, transparent),
+      radial-gradient(2px 2px at 40px 70px, rgba(255,255,255,0.8), transparent),
+      radial-gradient(1px 1px at 90px 40px, #fff, transparent),
+      radial-gradient(1px 1px at 130px 80px, rgba(255,255,255,0.6), transparent),
+      radial-gradient(2px 2px at 160px 30px, #ddd, transparent);
+    background-repeat: repeat;
+    background-size: 200px 100px;
+    animation: sparkle 20s linear infinite;
+    pointer-events: none;
+  }
+
+  @keyframes sparkle {
+    from { transform: translateY(0px); }
+    to { transform: translateY(-100px); }
+  }
+
+  /* Hero Text Glow Effect */
+  .hero-glow {
+    text-shadow: 0 0 20px hsl(21 90% 48% / 0.5),
+                 0 0 40px hsl(21 90% 48% / 0.3),
+                 0 0 60px hsl(21 90% 48% / 0.2);
+  }
+
+  /* Rocket Launch Animation */
+  .rocket-launch {
+    animation: launch 2s ease-out infinite alternate;
+  }
+
+  @keyframes launch {
+    0% { transform: translateY(0px) rotate(-5deg); }
+    100% { transform: translateY(-20px) rotate(5deg); }
+  }
+
+  /* Cosmic Card Hover Effect */
+  .cosmic-card {
+    transition: all 0.3s ease;
+    border: 1px solid hsl(var(--border));
+    background: hsl(var(--card) / 0.8);
+    backdrop-filter: blur(10px);
+  }
+
+  .cosmic-card:hover {
+    transform: translateY(-8px);
+    box-shadow: 0 20px 40px hsl(21 90% 48% / 0.2),
+                0 0 0 1px hsl(21 90% 48% / 0.3);
+    border-color: hsl(21 90% 48% / 0.5);
+  }
+
+  /* Mission Critical Button */
+  .btn-mission {
+    background: var(--rocket-gradient);
+    color: hsl(var(--background));
+    font-family: 'Orbitron', sans-serif;
+    font-weight: 600;
+    padding: 12px 24px;
+    border-radius: var(--radius);
+    border: none;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 20px hsl(21 90% 48% / 0.3);
+  }
+
+  .btn-mission:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 30px hsl(21 90% 48% / 0.4);
+  }
+
+  /* AI Theme Button */
+  .btn-ai {
+    background: var(--ai-gradient);
+    color: hsl(var(--background));
+    font-family: 'Orbitron', sans-serif;
+    font-weight: 600;
+    padding: 12px 24px;
+    border-radius: var(--radius);
+    border: none;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 20px hsl(272 87% 68% / 0.3);
+  }
+
+  .btn-ai:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 30px hsl(272 87% 68% / 0.4);
+  }
+  
+  /* Become Member Button */
+  .btn-become-member {
+    background: var(--earth-gradient);
+    color: hsl(var(--background));
+    font-family: 'Orbitron', sans-serif;
+    font-weight: 600;
+    padding: 12px 24px;
+    border-radius: var(--radius);
+    border: none;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 20px hsl(197 100% 45% / 0.3);
+  }
+
+  .btn-become-member:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 30px hsl(197 100% 45% / 0.4);
+  }
+
+  /* Navbar Blur Effect */
+  .nav-blur {
+    backdrop-filter: blur(20px);
+    background: hsl(var(--background) / 0.8);
+    border-bottom: 1px solid hsl(var(--border));
+  }
+
+  /* Utility Classes */
+  .hover-scale {
+    transition: transform 0.2s ease;
+  }
+
+  .hover-scale:hover {
+    transform: scale(1.05);
+  }
+}

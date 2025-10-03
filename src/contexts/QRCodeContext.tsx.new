@@ -1,0 +1,310 @@
+import { createContext, useContext, ReactNode, useState, useEffect } from "react";
+import api from "@/lib/api";
+import { useAuth } from "@/contexts/AuthContext";
+
+// Define QR code registration interface
+export interface QRCodeRegistration {
+  registrationId: string;
+  eventId: number;
+  participantId: number;
+  participantName: string;
+  participantEmail: string;
+  timestamp: string;
+  scanned: boolean;
+  scanTimestamp?: string;
+}
+
+interface QRCodeContextType {
+  registrations: QRCodeRegistration[];
+  generateQRCode: (eventId: number, participantId: number, participantName: string, participantEmail: string) => string;
+  validateQRCode: (code: string) => QRCodeRegistration | null;
+  markQRCodeAsScanned: (registrationId: string) => Promise<boolean>;
+  getEventRegistrations: (eventId: number) => Promise<QRCodeRegistration[]>;
+  getParticipantRegistrations: (participantId: number) => Promise<QRCodeRegistration[]>;
+  fetchAllRegistrations: () => Promise<void>;
+  loading: boolean;
+  registerForEvent: (eventId: number, userId?: number) => Promise<boolean>;
+}
+
+const QRCodeContext = createContext<QRCodeContextType | null>(null);
+
+// Sample QR code registrations for fallback
+const sampleRegistrations: QRCodeRegistration[] = [
+  {
+    registrationId: "SPARC-1-001-20240928",
+    eventId: 1,
+    participantId: 1,
+    participantName: "Demo User",
+    participantEmail: "demo@example.com",
+    timestamp: "2024-09-20T10:30:00Z",
+    scanned: true,
+    scanTimestamp: "2024-09-28T09:15:00Z"
+  }
+];
+
+export const QRCodeProvider = ({ children }: { children: ReactNode }) => {
+  const [registrations, setRegistrations] = useState<QRCodeRegistration[]>(sampleRegistrations);
+  const [loading, setLoading] = useState<boolean>(false);
+  const { user } = useAuth();
+
+  // Fetch all registrations from backend
+  const fetchAllRegistrations = async (): Promise<void> => {
+    setLoading(true);
+    try {
+      const response = await api.get('/registrations');
+      if (response.data) {
+        // Map backend data to our frontend structure
+        const formattedRegistrations = response.data.map((reg: any) => ({
+          registrationId: reg.id.toString(),
+          eventId: reg.event_id,
+          participantId: reg.user_id,
+          participantName: reg.user_name || 'Unknown',
+          participantEmail: reg.user_email || 'Unknown',
+          timestamp: reg.created_at,
+          scanned: reg.attended || false,
+          scanTimestamp: reg.attendance_time || null
+        }));
+        setRegistrations(formattedRegistrations);
+      }
+    } catch (error) {
+      console.error('Failed to fetch registrations:', error);
+      // Keep using demo data if API fails
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Load registrations when component mounts
+  useEffect(() => {
+    fetchAllRegistrations();
+  }, []);
+
+  // Generate QR code for a registration
+  const generateQRCode = (eventId: number, participantId: number, participantName: string, participantEmail: string): string => {
+    // Create a registration ID with format SPARC-EventID-UserID-Timestamp
+    const timestamp = new Date().toISOString().split('T')[0].replace(/-/g, '');
+    const registrationId = `SPARC-${eventId}-${participantId}-${timestamp}`;
+    
+    // QR code data as a JSON string
+    const qrData = JSON.stringify({
+      registrationId,
+      eventId,
+      userId: participantId,
+      userEmail: participantEmail,
+      timestamp: new Date().toISOString()
+    });
+    
+    return qrData;
+  };
+
+  // Validate a QR code
+  const validateQRCode = (code: string): QRCodeRegistration | null => {
+    try {
+      const data = JSON.parse(code);
+      // Find the registration in our local state
+      const registration = registrations.find(r => r.registrationId === data.registrationId);
+      
+      if (registration) {
+        return registration;
+      }
+      
+      // If not found but has valid format, create a new one
+      if (data.eventId && data.userId) {
+        return {
+          registrationId: data.registrationId || `SPARC-${data.eventId}-${data.userId}-${Date.now()}`,
+          eventId: data.eventId,
+          participantId: data.userId,
+          participantName: data.userName || 'Unknown',
+          participantEmail: data.userEmail || 'Unknown',
+          timestamp: data.timestamp || new Date().toISOString(),
+          scanned: false
+        };
+      }
+      
+      return null;
+    } catch (error) {
+      console.error('Error validating QR code:', error);
+      return null;
+    }
+  };
+
+  // Mark a QR code as scanned (mark attendance)
+  const markQRCodeAsScanned = async (registrationId: string): Promise<boolean> => {
+    try {
+      // Find registration in local state
+      const registration = registrations.find(r => r.registrationId === registrationId);
+      if (!registration) return false;
+      
+      // Send attendance marking to backend
+      await api.post(`/events/${registration.eventId}/attendance`, {
+        registration_id: registrationId,
+        user_id: registration.participantId
+      });
+      
+      // Update local state
+      const updatedRegistrations = registrations.map(r => {
+        if (r.registrationId === registrationId) {
+          return {
+            ...r,
+            scanned: true,
+            scanTimestamp: new Date().toISOString()
+          };
+        }
+        return r;
+      });
+      
+      setRegistrations(updatedRegistrations);
+      return true;
+    } catch (error) {
+      console.error('Error marking QR code as scanned:', error);
+      
+      // Update local state even if API fails
+      const updatedRegistrations = registrations.map(r => {
+        if (r.registrationId === registrationId) {
+          return {
+            ...r,
+            scanned: true,
+            scanTimestamp: new Date().toISOString()
+          };
+        }
+        return r;
+      });
+      
+      setRegistrations(updatedRegistrations);
+      return false;
+    }
+  };
+
+  // Get registrations for a specific event
+  const getEventRegistrations = async (eventId: number): Promise<QRCodeRegistration[]> => {
+    try {
+      // Try to get from backend
+      const response = await api.get(`/events/${eventId}/registrations`);
+      if (response.data) {
+        const eventRegistrations = response.data.map((reg: any) => ({
+          registrationId: reg.id.toString(),
+          eventId: reg.event_id,
+          participantId: reg.user_id,
+          participantName: reg.user_name || 'Unknown',
+          participantEmail: reg.user_email || 'Unknown',
+          timestamp: reg.created_at,
+          scanned: reg.attended || false,
+          scanTimestamp: reg.attendance_time || null
+        }));
+        
+        // Update our local state with these registrations
+        const updatedRegistrations = [
+          ...registrations.filter(r => r.eventId !== eventId),
+          ...eventRegistrations
+        ];
+        
+        setRegistrations(updatedRegistrations);
+        return eventRegistrations;
+      }
+    } catch (error) {
+      console.error(`Failed to fetch registrations for event ${eventId}:`, error);
+    }
+    
+    // Fall back to local state filtering
+    return registrations.filter(r => r.eventId === eventId);
+  };
+
+  // Get registrations for a specific participant
+  const getParticipantRegistrations = async (participantId: number): Promise<QRCodeRegistration[]> => {
+    try {
+      // Try to get from backend
+      const response = await api.get(`/users/${participantId}/registrations`);
+      if (response.data) {
+        const userRegistrations = response.data.map((reg: any) => ({
+          registrationId: reg.id.toString(),
+          eventId: reg.event_id,
+          participantId: reg.user_id,
+          participantName: reg.user_name || 'Unknown',
+          participantEmail: reg.user_email || 'Unknown',
+          timestamp: reg.created_at,
+          scanned: reg.attended || false,
+          scanTimestamp: reg.attendance_time || null
+        }));
+        
+        return userRegistrations;
+      }
+    } catch (error) {
+      console.error(`Failed to fetch registrations for user ${participantId}:`, error);
+    }
+    
+    // Fall back to local state filtering
+    return registrations.filter(r => r.participantId === participantId);
+  };
+
+  // Register for an event
+  const registerForEvent = async (eventId: number, userId?: number): Promise<boolean> => {
+    try {
+      // Use current user id if not provided
+      const participantId = userId || (user ? parseInt(user.id) : 1);
+      
+      // Call the backend API
+      const response = await api.post('/registrations', {
+        event_id: eventId,
+        user_id: participantId
+      });
+      
+      // Create new registration from response
+      const newRegistration: QRCodeRegistration = {
+        registrationId: response.data.id.toString(),
+        eventId: eventId,
+        participantId: participantId,
+        participantName: user?.name || 'Demo User',
+        participantEmail: user?.email || 'demo@example.com',
+        timestamp: response.data.created_at || new Date().toISOString(),
+        scanned: false
+      };
+      
+      // Update local state
+      setRegistrations([...registrations, newRegistration]);
+      return true;
+    } catch (error) {
+      console.error('Failed to register for event:', error);
+      
+      // Create a fallback registration for local state
+      const fallbackRegistration: QRCodeRegistration = {
+        registrationId: `SPARC-${eventId}-${user?.id || 1}-${Date.now()}`,
+        eventId: eventId,
+        participantId: userId || (user ? parseInt(user.id) : 1),
+        participantName: user?.name || 'Demo User',
+        participantEmail: user?.email || 'demo@example.com',
+        timestamp: new Date().toISOString(),
+        scanned: false
+      };
+      
+      // Update local state even if API fails
+      setRegistrations([...registrations, fallbackRegistration]);
+      return false;
+    }
+  };
+
+  return (
+    <QRCodeContext.Provider value={{
+      registrations,
+      generateQRCode,
+      validateQRCode,
+      markQRCodeAsScanned,
+      getEventRegistrations,
+      getParticipantRegistrations,
+      fetchAllRegistrations,
+      loading,
+      registerForEvent
+    }}>
+      {children}
+    </QRCodeContext.Provider>
+  );
+};
+
+export const useQRCode = () => {
+  const context = useContext(QRCodeContext);
+  
+  if (!context) {
+    throw new Error('useQRCode must be used within a QRCodeProvider');
+  }
+  
+  return context;
+};

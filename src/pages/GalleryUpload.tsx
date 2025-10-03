@@ -1,0 +1,307 @@
+import { useState } from "react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Card, CardContent } from "@/components/ui/card";
+import { Upload, X, Image as ImageIcon, Video, CheckCircle } from "lucide-react";
+import { useToast } from "@/components/ui/use-toast";
+import api from "@/lib/api";
+
+const GalleryUpload = () => {
+  const [files, setFiles] = useState<File[]>([]);
+  const [previewUrls, setPreviewUrls] = useState<string[]>([]);
+  const [title, setTitle] = useState("");
+  const [description, setDescription] = useState("");
+  const [category, setCategory] = useState("Rocket Launches");
+  const [isUploading, setIsUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const { toast } = useToast();
+
+  const categories = [
+    "Rocket Launches", 
+    "Workshops", 
+    "Hackathons", 
+    "Team Events", 
+    "Prototypes", 
+    "Other"
+  ];
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files) {
+      const newFiles = Array.from(e.target.files);
+      
+      // Create preview URLs
+      const newPreviewUrls = newFiles.map(file => URL.createObjectURL(file));
+      
+      setFiles([...files, ...newFiles]);
+      setPreviewUrls([...previewUrls, ...newPreviewUrls]);
+    }
+  };
+
+  const removeFile = (index: number) => {
+    // Revoke the object URL to avoid memory leaks
+    URL.revokeObjectURL(previewUrls[index]);
+    
+    setFiles(files.filter((_, i) => i !== index));
+    setPreviewUrls(previewUrls.filter((_, i) => i !== index));
+  };
+
+  const getFileType = (file: File) => {
+    if (file.type.startsWith('image/')) return 'image';
+    if (file.type.startsWith('video/')) return 'video';
+    return 'unknown';
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (files.length === 0) {
+      toast({
+        title: "Error",
+        description: "Please select at least one file to upload",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    setIsUploading(true);
+    setUploadProgress(0);
+    
+    try {
+      // Create a FormData object to send files
+      const formData = new FormData();
+      
+      // Add metadata
+      formData.append('title', title);
+      formData.append('description', description);
+      formData.append('category', category);
+      formData.append('date', new Date().toISOString());
+      
+      // Add all files
+      files.forEach((file, index) => {
+        formData.append(`files[${index}]`, file);
+      });
+      
+      // Track upload progress
+      const uploadProgressInterval = setInterval(() => {
+        setUploadProgress(prev => {
+          if (prev >= 90) return 90;
+          return prev + 10;
+        });
+      }, 500);
+      
+      // Call the backend API
+      const response = await api.post('/gallery', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data'
+        }
+      });
+      
+      // Stop progress tracking
+      clearInterval(uploadProgressInterval);
+      setUploadProgress(100);
+      
+      console.log('Gallery upload successful:', response.data);
+      
+      // Clear form and show success message
+      setFiles([]);
+      setPreviewUrls([]);
+      setTitle("");
+      setDescription("");
+      setCategory("Rocket Launches");
+      
+      toast({
+        title: "Upload Successful",
+        description: "Your gallery items have been uploaded successfully.",
+        variant: "default",
+      });
+    } catch (error) {
+      console.error('Gallery upload failed:', error);
+      
+      // Show error message
+      toast({
+        title: "Upload Failed",
+        description: "Failed to upload gallery items. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  return (
+    <div className="container mx-auto">
+      <h1 className="text-3xl font-orbitron font-bold mb-6">Upload Gallery Items</h1>
+      
+      <div className="max-w-4xl mx-auto">
+        <form onSubmit={handleSubmit} className="space-y-8">
+          {/* File Upload Area */}
+          <Card className="border-dashed border-2 border-border">
+            <CardContent className="p-6">
+              <div className="flex flex-col items-center justify-center">
+                <Upload className="w-12 h-12 text-muted-foreground mb-4" />
+                <h3 className="text-xl font-medium mb-2">Drag and drop files here</h3>
+                <p className="text-muted-foreground mb-4">
+                  Or select files from your computer
+                </p>
+                <Input
+                  type="file"
+                  id="file-upload"
+                  multiple
+                  onChange={handleFileChange}
+                  accept="image/*, video/*"
+                  className="hidden"
+                  disabled={isUploading}
+                />
+                <Label htmlFor="file-upload" asChild>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="cursor-pointer"
+                    disabled={isUploading}
+                  >
+                    Select Files
+                  </Button>
+                </Label>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* File Preview Area */}
+          {previewUrls.length > 0 && (
+            <div className="space-y-4">
+              <h3 className="text-lg font-medium">Selected Files ({files.length})</h3>
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+                {files.map((file, index) => (
+                  <div key={index} className="relative group">
+                    <div className="aspect-square rounded-md overflow-hidden bg-card border border-border">
+                      {/* Preview based on file type */}
+                      {getFileType(file) === 'image' ? (
+                        <img
+                          src={previewUrls[index]}
+                          alt={file.name}
+                          className="w-full h-full object-cover"
+                        />
+                      ) : getFileType(file) === 'video' ? (
+                        <div className="w-full h-full flex items-center justify-center bg-black">
+                          <Video className="w-10 h-10 text-white/70" />
+                        </div>
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center">
+                          <ImageIcon className="w-10 h-10 text-muted-foreground" />
+                        </div>
+                      )}
+                      
+                      {/* File name overlay */}
+                      <div className="absolute inset-x-0 bottom-0 bg-black/70 py-1 px-2 text-xs text-white truncate">
+                        {file.name}
+                      </div>
+                      
+                      {/* Remove button */}
+                      <button
+                        type="button"
+                        onClick={() => removeFile(index)}
+                        className="absolute top-1 right-1 w-6 h-6 bg-background/80 hover:bg-destructive rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                        disabled={isUploading}
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Metadata Fields */}
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="title">Title</Label>
+              <Input
+                id="title"
+                placeholder="Enter a title for these gallery items"
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                disabled={isUploading}
+                required
+              />
+            </div>
+            
+            <div>
+              <Label htmlFor="description">Description</Label>
+              <Textarea
+                id="description"
+                placeholder="Enter a description"
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                disabled={isUploading}
+                required
+              />
+            </div>
+            
+            <div>
+              <Label htmlFor="category">Category</Label>
+              <Select
+                value={category}
+                onValueChange={setCategory}
+                disabled={isUploading}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select a category" />
+                </SelectTrigger>
+                <SelectContent>
+                  {categories.map((cat) => (
+                    <SelectItem key={cat} value={cat}>
+                      {cat}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          {/* Upload Progress */}
+          {isUploading && (
+            <div className="space-y-2">
+              <div className="flex justify-between text-sm">
+                <span>Uploading...</span>
+                <span>{uploadProgress}%</span>
+              </div>
+              <div className="w-full bg-muted rounded-full h-2">
+                <div
+                  className="bg-primary h-2 rounded-full transition-all duration-300 ease-out"
+                  style={{ width: `${uploadProgress}%` }}
+                ></div>
+              </div>
+            </div>
+          )}
+
+          {/* Submit Button */}
+          <Button
+            type="submit"
+            className="w-full"
+            disabled={isUploading || files.length === 0}
+          >
+            {isUploading ? (
+              <span className="flex items-center">
+                <span className="animate-spin mr-2">⏳</span>
+                Uploading...
+              </span>
+            ) : uploadProgress === 100 ? (
+              <span className="flex items-center">
+                <CheckCircle className="w-4 h-4 mr-2" />
+                Upload Complete
+              </span>
+            ) : (
+              "Upload to Gallery"
+            )}
+          </Button>
+        </form>
+      </div>
+    </div>
+  );
+};
+
+export default GalleryUpload;

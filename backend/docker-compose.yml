@@ -1,0 +1,50 @@
+version: '3'
+
+services:
+  # FastAPI Application
+  api:
+    image: python:3.11-slim
+    volumes:
+      - ./:/app
+    working_dir: /app
+    env_file:
+      - .env
+    ports:
+      - "8000:8000"
+    depends_on:
+      - db
+    command: >
+      bash -c "pip install -r requirements.txt &&
+               uvicorn app.main:app --host 0.0.0.0 --reload"
+
+  # PostgreSQL Database
+  db:
+    image: postgres:15
+    volumes:
+      - postgres_data:/var/lib/postgresql/data/
+    env_file:
+      - .env
+    environment:
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_DB=${POSTGRES_DB}
+    ports:
+      - "5432:5432"
+
+  # LocalStack for AWS services emulation (local development only)
+  localstack:
+    container_name: "${LOCALSTACK_DOCKER_NAME-localstack_sparc}"
+    image: localstack/localstack:latest
+    ports:
+      - "4566:4566"
+      - "4510-4559:4510-4559"
+    environment:
+      - DEBUG=${DEBUG-}
+      - DOCKER_HOST=unix:///var/run/docker.sock
+      - SERVICES=s3,cognito
+    volumes:
+      - "${LOCALSTACK_VOLUME_DIR:-./localstack}:/var/lib/localstack"
+      - "/var/run/docker.sock:/var/run/docker.sock"
+
+volumes:
+  postgres_data:
