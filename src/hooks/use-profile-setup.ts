@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import AuthService from '@/services/auth-service';
 import api from '@/lib/api';
 
@@ -26,6 +27,7 @@ export type VerificationStatus = {
 };
 
 export const useProfileSetup = () => {
+  const navigate = useNavigate();
   const [codeSent, setCodeSent] = useState(false);
   const [verificationStatus, setVerificationStatus] = useState<VerificationStatus>({
     loading: false,
@@ -132,41 +134,41 @@ export const useProfileSetup = () => {
   };
 
   /**
-   * Save the user profile to the backend
+   * Save the user's profile data
    */
   const saveUserProfile = async (formData: UserFormData) => {
     try {
-      // Format data for profile creation according to backend schema
-      const profileData = {
-        name: formData.fullName,
-        phone: formData.phone,
-        email: formData.email,
-        branch: formData.branch,
-        year: formData.year,
-        college: formData.college,
-        student_id: formData.studentId,
-        ...(formData.password ? { password: formData.password } : {})
-      };
+      const data = new FormData();
       
-      // Update user profile with basic information
-      await api.patch('/users/me', profileData);
-      
-      // If there's a profile image, upload it separately
-      if (formData.profileImage) {
-        const imageFormData = new FormData();
-        imageFormData.append('avatar', formData.profileImage);
-        
-        await api.post('/users/me/avatar', imageFormData, {
-          headers: {
-            'Content-Type': 'multipart/form-data'
+      // Append all form fields to the FormData object
+      Object.entries(formData).forEach(([key, value]) => {
+        if (value !== null && value !== undefined) {
+          if (key === 'profileImage' && value instanceof File) {
+            data.append(key, value, value.name);
+          } else if (typeof value === 'string') {
+            data.append(key, value);
           }
-        });
+        }
+      });
+
+      // Use the API instance to post the data
+      const response = await api.post('/users/register', data, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      });
+
+      if (response.status === 201 || response.status === 200) {
+        // On successful registration, navigate to the verification page
+        navigate('/verify-email', { state: { email: formData.email } });
+        return { success: true, error: null };
+      } else {
+        return { success: false, error: 'An unexpected error occurred.' };
       }
-      
-      return true;
     } catch (error: any) {
       console.error("Error saving user profile:", error);
-      throw new Error(error.response?.data?.detail || 'Failed to save profile data.');
+      const errorMessage = error.response?.data?.detail || 'Failed to save profile. Please try again.';
+      return { success: false, error: errorMessage };
     }
   };
 

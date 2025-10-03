@@ -40,6 +40,7 @@ import GalleryUpload from "./pages/GalleryUpload";
 import ViewParticipants from "./pages/ViewParticipants";
 import AuthCallback from "./pages/AuthCallback";
 import ForgotPassword from "./pages/ForgotPassword";
+import VerifyEmail from "./pages/VerifyEmail"; // Import the new component
 import { useAuth as useAppAuth } from "./contexts/AuthContext";
 
 // Create a new QueryClient instance
@@ -79,6 +80,7 @@ const App = () => {
                       <Route path="/forgot-password" element={<ForgotPassword />} />
                       <Route path="/complete-setup" element={<CompleteSetup />} />
                       <Route path="/auth-callback" element={<AuthCallback />} />
+                      <Route path="/verify-email" element={<VerifyEmail />} /> {/* Add the new route */}
 
                       {/* Private routes (require AuthContext login) */}
                       <Route path="/member-dashboard/*" element={<PrivateRoute element={<MemberDashboard />} />} />
