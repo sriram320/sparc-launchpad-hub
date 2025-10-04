@@ -4,7 +4,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
-import api from '@/lib/api';
+import { cognitoConfirmSignUp, cognitoResendCode } from '@/services/cognito';
 
 const VerifyEmail = () => {
   const [verificationCode, setVerificationCode] = useState('');
@@ -27,11 +27,7 @@ const VerifyEmail = () => {
     setIsLoading(true);
 
     try {
-      // API call to your backend to verify the code
-      await api.post('/auth/verify-email', {
-        email,
-        code: verificationCode,
-      });
+      await cognitoConfirmSignUp(email, verificationCode);
 
       toast({
         title: 'Verification Successful',
@@ -51,8 +47,8 @@ const VerifyEmail = () => {
   };
 
   const handleResendCode = async () => {
-    try {
-        await api.post('/auth/resend-verification', { email });
+  try {
+    await cognitoResendCode(email);
         toast({
             title: 'Code Resent',
             description: 'A new verification code has been sent to your email.',

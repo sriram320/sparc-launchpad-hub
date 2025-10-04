@@ -1,54 +1,48 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { Mail, Lock, ArrowLeft, ArrowRight, CheckCircle2, Loader2 } from "lucide-react";
+import { Mail, ArrowLeft, CheckCircle2, Loader2, ArrowRight, Lock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { useToast } from "@/hooks/use-toast";
 import { Label } from "@/components/ui/label";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-// Using public folder logo path
-import AuthService from "@/services/auth-service";
+import { cognitoForgotPassword, cognitoConfirmForgotPassword } from "@/services/cognito";
 
 const ForgotPassword = () => {
   const navigate = useNavigate();
-  const [currentStep, setCurrentStep] = useState<"email" | "verification" | "reset" | "success">("email");
   const [email, setEmail] = useState("");
   const [verificationCode, setVerificationCode] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
+  const [currentStep, setCurrentStep] = useState<"email" | "verification" | "reset" | "success">("email");
   const [error, setError] = useState("");
   const [codeExpiry, setCodeExpiry] = useState<Date | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const { toast } = useToast();
 
   const handleSubmitEmail = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError("");
     setIsLoading(true);
+    setError("");
     
     try {
-      // In a real implementation, this would call the backend service
-      await AuthService.sendPasswordResetCode(email);
-      
-      // Set code expiry to 10 minutes from now
-      const expiryTime = new Date();
-      expiryTime.setMinutes(expiryTime.getMinutes() + 10);
-      setCodeExpiry(expiryTime);
-      
-      // Move to the verification step
+      await cognitoForgotPassword(email);
       setCurrentStep("verification");
+      // set expiry 10 minutes ahead (Cognito default is typically 3 minutes for SMS, 24h for email; we use 10m UX)
+      const expiry = new Date();
+      expiry.setMinutes(expiry.getMinutes() + 10);
+      setCodeExpiry(expiry);
+      toast({
+        title: "Check Your Email",
+        description: "If an account with that email exists, a verification code has been sent.",
+      });
     } catch (err) {
-      console.error("Failed to send verification code", err);
-      setError("Failed to send verification code. Please try again.");
-      
-      // For development purposes only
-      if (import.meta.env.DEV) {
-        // Set code expiry to 10 minutes from now for testing
-        const expiryTime = new Date();
-        expiryTime.setMinutes(expiryTime.getMinutes() + 10);
-        setCodeExpiry(expiryTime);
-        
-        // Move to the verification step anyway for testing
-        setCurrentStep("verification");
-      }
+      console.error("Failed to send reset code", err);
+      // Show generic message regardless (avoid email enumeration)
+      setCurrentStep("verification");
+      toast({
+        title: "Check Your Email",
+        description: "If an account with that email exists, a verification code has been sent.",
+      });
     } finally {
       setIsLoading(false);
     }
@@ -60,10 +54,7 @@ const ForgotPassword = () => {
     setIsLoading(true);
     
     try {
-      // In a real implementation, this would verify the code with the backend
-      await AuthService.verifyPasswordResetCode(email, verificationCode);
-      
-      // Move to reset password step
+      // With Cognito, verification of code happens during confirm step; here we proceed to reset form
       setCurrentStep("reset");
     } catch (err) {
       console.error("Invalid verification code", err);
@@ -101,8 +92,7 @@ const ForgotPassword = () => {
     setIsLoading(true);
     
     try {
-      // In a real implementation, this would reset the password via the backend
-      await AuthService.resetPassword(email, verificationCode, newPassword);
+      await cognitoConfirmForgotPassword(email, verificationCode, newPassword);
       
       // Move to success step
       setCurrentStep("success");

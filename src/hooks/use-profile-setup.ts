@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import AuthService from '@/services/auth-service';
+import { cognitoSignUp } from '@/services/cognito';
 import api from '@/lib/api';
 
 export type UserFormData = {
@@ -138,6 +139,34 @@ export const useProfileSetup = () => {
    */
   const saveUserProfile = async (formData: UserFormData) => {
     try {
+      // 0) Attempt Cognito sign-up to trigger verification code via email/phone
+      try {
+        const phone_number = (() => {
+          if (formData.verificationMethod === 'phone') {
+            const raw = (formData.phone || '').trim();
+            if (!raw) return undefined;
+            if (raw.startsWith('+')) return raw; // assume already E.164
+            // simple normalization: if 10 digits, assume India
+            const digits = raw.replace(/\D/g, '');
+            if (digits.length === 10) return `+91${digits}`;
+            return undefined; // don't send if unsure
+          }
+          return undefined;
+        })();
+        if (formData.email && formData.password) {
+          await cognitoSignUp({
+            email: formData.email,
+            password: formData.password,
+            phone_number,
+            given_name: formData.fullName?.split(' ')?.[0] || undefined,
+            family_name: formData.fullName?.split(' ')?.slice(1).join(' ') || undefined,
+          });
+        }
+      } catch (e) {
+        // If user already exists or other client-side issue, continue to backend save
+        console.warn('Cognito signUp skipped/failed (continuing):', e);
+      }
+
       const data = new FormData();
       
       // Append all form fields to the FormData object
