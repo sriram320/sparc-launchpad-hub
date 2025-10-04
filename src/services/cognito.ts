@@ -17,7 +17,8 @@ import {
 const V = import.meta.env as Record<string, string>;
 
 const REGION = V.VITE_COGNITO_REGION;
-const CLIENT_ID = V.VITE_COGNITO_APP_CLIENT_ID; // required for all flows here
+// Prefer APP client id, but fall back to CLIENT_ID to support hosted UI setups
+const CLIENT_ID = V.VITE_COGNITO_APP_CLIENT_ID || V.VITE_COGNITO_CLIENT_ID; // required for all flows here
 
 function ensureEnv() {
   if (!REGION) throw new Error('Missing VITE_COGNITO_REGION');
