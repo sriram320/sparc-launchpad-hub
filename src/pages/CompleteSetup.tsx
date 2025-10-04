@@ -162,7 +162,12 @@ const CompleteSetup = () => {
     }
 
     const contactInfo = formData.verificationMethod === "email" ? formData.email : formData.phone;
-    const success = await sendCode(formData.verificationMethod, contactInfo);
+    const success = await sendCode(formData.verificationMethod, contactInfo, {
+      email: formData.email,
+      password: formData.password,
+      fullName: formData.fullName,
+      phone: formData.phone,
+    });
     
     // Store contact info in localStorage for dev mode
     if (success && import.meta.env.DEV) {
