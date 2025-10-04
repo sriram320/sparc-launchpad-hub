@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import AuthService from '@/services/auth-service';
-import { cognitoSignUp } from '@/services/cognito';
+import { cognitoSignUp, cognitoResendCode, cognitoConfirmSignUp } from '@/services/cognito';
 import api from '@/lib/api';
 
 export type UserFormData = {
@@ -41,8 +41,9 @@ export const useProfileSetup = () => {
    * Send verification code to the user's email or phone
    */
   const sendVerificationCode = async (
-    verificationMethod: "email" | "phone", 
-    contactInfo: string
+    verificationMethod: "email" | "phone",
+    contactInfo: string,
+    options?: { email?: string; password?: string; fullName?: string; phone?: string }
   ) => {
     try {
       setVerificationStatus({
@@ -51,32 +52,60 @@ export const useProfileSetup = () => {
         error: null
       });
 
-      // Use the AuthService to send verification code
-      const result = await AuthService.sendVerificationCode(verificationMethod, contactInfo);
-      
-      if (result.success) {
-        // Set expiry time for 10 minutes from now
-        const expiryTime = new Date();
-        expiryTime.setMinutes(expiryTime.getMinutes() + 10);
-        
-        setCodeSent(true);
-        setVerificationStatus({
-          loading: false,
-          error: null,
-          success: true,
-          codeExpiry: expiryTime
-        });
-        
-        return true;
-      } else {
+      // Prefer Cognito directly. We need the email as Username for both methods.
+      const email = options?.email || (verificationMethod === 'email' ? contactInfo : undefined);
+      if (!email) {
         setVerificationStatus({
           ...verificationStatus,
           loading: false,
-          error: result.error || `Failed to send verification code to your ${verificationMethod}.`
+          error: 'Email is required to send verification code.'
         });
-        
         return false;
       }
+
+      const normalizePhone = (raw?: string) => {
+        if (!raw) return undefined;
+        const trimmed = raw.trim();
+        if (trimmed.startsWith('+')) return trimmed;
+        const digits = trimmed.replace(/\D/g, '');
+        if (digits.length === 10) return `+91${digits}`;
+        return undefined;
+      };
+
+      const phone_number = verificationMethod === 'phone'
+        ? normalizePhone(options?.phone || contactInfo)
+        : undefined;
+
+      // For signUp we need a password; if missing, try resend path directly
+      const password = options?.password;
+
+      try {
+        if (password) {
+          await cognitoSignUp({
+            email,
+            password,
+            phone_number,
+            given_name: options?.fullName?.split(' ')?.[0] || undefined,
+            family_name: options?.fullName?.split(' ')?.slice(1).join(' ') || undefined,
+          });
+        } else {
+          throw new Error('NO_PASSWORD_TRY_RESEND');
+        }
+      } catch (e) {
+        // If username exists or we skipped signUp, try resend
+        await cognitoResendCode(email);
+      }
+
+      const expiryTime = new Date();
+      expiryTime.setMinutes(expiryTime.getMinutes() + 10);
+      setCodeSent(true);
+      setVerificationStatus({
+        loading: false,
+        error: null,
+        success: true,
+        codeExpiry: expiryTime
+      });
+      return true;
     } catch (error: any) {
       setVerificationStatus({
         ...verificationStatus,
@@ -93,8 +122,9 @@ export const useProfileSetup = () => {
    */
   const verifyCode = async (
     code: string,
-    verificationMethod: "email" | "phone", 
-    contactInfo: string
+    verificationMethod: "email" | "phone",
+    contactInfo: string,
+    options?: { email?: string }
   ) => {
     try {
       setVerificationStatus({
@@ -102,27 +132,18 @@ export const useProfileSetup = () => {
         loading: true,
         error: null
       });
-      
-      const result = await AuthService.verifyCode(verificationMethod, contactInfo, code);
-      
-      if (result.success) {
-        setVerificationStatus({
-          loading: false,
-          error: null,
-          success: true,
-          codeExpiry: null
-        });
-        
-        return true;
-      } else {
-        setVerificationStatus({
-          ...verificationStatus,
-          loading: false,
-          error: result.error || 'Invalid verification code'
-        });
-        
-        return false;
-      }
+
+      const email = options?.email || (verificationMethod === 'email' ? contactInfo : undefined);
+      if (!email) throw new Error('Email is required to confirm sign up');
+
+      await cognitoConfirmSignUp(email, code);
+      setVerificationStatus({
+        loading: false,
+        error: null,
+        success: true,
+        codeExpiry: null
+      });
+      return true;
     } catch (error: any) {
       setVerificationStatus({
         ...verificationStatus,
